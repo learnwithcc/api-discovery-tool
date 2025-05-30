@@ -1,0 +1,36 @@
+# Requirements for API Discovery Tool
+# Install with: pip install -r requirements.txt
+
+# Core web scraping libraries
+requests>=2.31.0
+beautifulsoup4>=4.12.2
+selenium>=4.15.0
+
+# HTML parsing
+lxml>=4.9.3
+
+# JSON and data handling
+urllib3>=2.0.7
+
+# Command line interface
+argparse
+
+# Logging (built-in)
+# urllib.robotparser (built-in)
+# json (built-in)
+# re (built-in)
+# time (built-in)
+
+# Optional: For advanced analysis
+# haralyzer>=2.4.0  # For HAR file analysis
+# jsbeautifier>=1.14.9  # For JavaScript formatting
+# python-whois>=0.8.0  # For domain information
+
+# Optional: For enhanced browser automation
+# undetected-chromedriver>=3.5.4  # For stealth browsing
+# webdriver-manager>=4.0.1  # For automatic driver management
+
+# Development dependencies (optional)
+# pytest>=7.4.3
+# black>=23.10.1
+# flake8>=6.1.0

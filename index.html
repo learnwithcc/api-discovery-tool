@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Discovery Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="flex justify-between items-center">
+                <h1>🔍 API Discovery Dashboard</h1>
+                <button id="themeToggle" class="btn btn--outline btn--sm">
+                    <span id="themeIcon">🌙</span>
+                </button>
+            </div>
+            <p class="header__subtitle">Analyze websites to discover APIs, frameworks, and network patterns</p>
+        </header>
+
+        <!-- Main Analysis Section -->
+        <section class="analysis-section">
+            <div class="card">
+                <div class="card__body">
+                    <h2>Website Analysis</h2>
+                    <div class="form-group">
+                        <label class="form-label" for="urlInput">Enter Website URL</label>
+                        <input type="url" id="urlInput" class="form-control" placeholder="https://example.com" value="https://example-ecommerce.com">
+                    </div>
+                    <div class="flex gap-8">
+                        <button id="analyzeBtn" class="btn btn--primary">
+                            <span id="analyzeText">🔍 Analyze Website</span>
+                            <span id="loadingSpinner" class="loading-spinner hidden">⏳</span>
+                        </button>
+                        <button id="demoBtn" class="btn btn--secondary">📊 View Demo Results</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Discovery Methods Section -->
+        <section class="methods-section">
+            <h2>Discovery Methods</h2>
+            <div class="methods-grid">
+                <div class="method-card card">
+                    <div class="card__body">
+                        <div class="method-icon">📄</div>
+                        <h3>HTML Source Analysis</h3>
+                        <p>Examines HTML source code for API endpoints in script tags, data attributes, and form actions</p>
+                        <div class="techniques">
+                            <span class="status status--info">Script tag analysis</span>
+                            <span class="status status--info">Data attribute scanning</span>
+                            <span class="status status--info">Form action inspection</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="method-card card">
+                    <div class="card__body">
+                        <div class="method-icon">⚙️</div>
+                        <h3>JavaScript Code Analysis</h3>
+                        <p>Analyzes JavaScript code for fetch calls, AJAX requests, and API patterns</p>
+                        <div class="techniques">
+                            <span class="status status--info">Regex pattern matching</span>
+                            <span class="status status--info">AST parsing</span>
+                            <span class="status status--info">Function call detection</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="method-card card">
+                    <div class="card__body">
+                        <div class="method-icon">🌐</div>
+                        <h3>Network Traffic Monitoring</h3>
+                        <p>Monitors network requests made by the browser to identify API calls</p>
+                        <div class="techniques">
+                            <span class="status status--info">DevTools Protocol</span>
+                            <span class="status status--info">HAR file analysis</span>
+                            <span class="status status--info">Request interception</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="method-card card">
+                    <div class="card__body">
+                        <div class="method-icon">🔧</div>
+                        <h3>Framework Detection</h3>
+                        <p>Identifies JavaScript frameworks and libraries that may indicate API usage patterns</p>
+                        <div class="techniques">
+                            <span class="status status--info">Global object detection</span>
+                            <span class="status status--info">Library signature matching</span>
+                            <span class="status status--info">Version identification</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section id="resultsSection" class="results-section hidden">
+            <div class="card">
+                <div class="card__header">
+                    <div class="flex justify-between items-center">
+                        <h2>Analysis Results</h2>
+                        <div class="flex gap-8">
+                            <button id="exportBtn" class="btn btn--outline btn--sm">💾 Export JSON</button>
+                            <select id="demoSelector" class="form-control" style="width: auto;">
+                                <option value="ecommerce">E-commerce Example</option>
+                                <option value="news">News Site Example</option>
+                                <option value="social">Social Media Example</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="results-summary">
+                        <div class="summary-item">
+                            <span class="summary-label">Target URL:</span>
+                            <span id="targetUrl">-</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Discovery Time:</span>
+                            <span id="discoveryTime">-</span>
+                        </div>
+                        <div class="summary-stats">
+                            <div class="stat">
+                                <span class="stat-number" id="totalApis">0</span>
+                                <span class="stat-label">APIs Discovered</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-number" id="totalRequests">0</span>
+                                <span class="stat-label">Network Requests</span>
+                            </div>
+                            <div class="stat">
+                                <span class="stat-number" id="totalFrameworks">0</span>
+                                <span class="stat-label">Frameworks Detected</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card__body">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="apis">🔗 Discovered APIs</button>
+                        <button class="tab-btn" data-tab="frameworks">🔧 Frameworks</button>
+                        <button class="tab-btn" data-tab="network">🌐 Network Requests</button>
+                        <button class="tab-btn" data-tab="security">🔒 Security</button>
+                    </div>
+
+                    <!-- APIs Tab -->
+                    <div id="apisTab" class="tab-content active">
+                        <div class="table-container">
+                            <table class="results-table">
+                                <thead>
+                                    <tr>
+                                        <th>API Endpoint</th>
+                                        <th>Method</th>
+                                        <th>Discovery Source</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="apisTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Frameworks Tab -->
+                    <div id="frameworksTab" class="tab-content">
+                        <div class="table-container">
+                            <table class="results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Framework</th>
+                                        <th>Indicator</th>
+                                        <th>Detection Method</th>
+                                        <th>Confidence</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="frameworksTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Network Tab -->
+                    <div id="networkTab" class="tab-content">
+                        <div class="table-container">
+                            <table class="results-table">
+                                <thead>
+                                    <tr>
+                                        <th>URL</th>
+                                        <th>Method</th>
+                                        <th>Status</th>
+                                        <th>Type</th>
+                                        <th>Size</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="networkTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Security Tab -->
+                    <div id="securityTab" class="tab-content">
+                        <div class="security-info">
+                            <h3>Security Considerations</h3>
+                            <div class="security-item">
+                                <h4>🔐 Authentication Detected</h4>
+                                <p>Found authentication endpoints that may require proper credentials.</p>
+                            </div>
+                            <div class="security-item">
+                                <h4>🌐 CORS Configuration</h4>
+                                <p>Check CORS headers on API endpoints to understand access restrictions.</p>
+                            </div>
+                            <div class="security-item">
+                                <h4>🔒 HTTPS Usage</h4>
+                                <p>Verify that sensitive API endpoints use HTTPS for secure communication.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Educational Section -->
+        <section class="education-section">
+            <div class="card">
+                <div class="card__header">
+                    <h2>📚 How It Works</h2>
+                </div>
+                <div class="card__body">
+                    <div class="education-content">
+                        <div class="education-item">
+                            <h3>1. Source Code Analysis</h3>
+                            <p>We examine the HTML source code to find API endpoints embedded in script tags, data attributes, and form actions.</p>
+                            <div class="code-snippet">
+                                <code>&lt;script&gt;fetch('/api/v1/products')&lt;/script&gt;</code>
+                            </div>
+                        </div>
+                        <div class="education-item">
+                            <h3>2. JavaScript Parsing</h3>
+                            <p>JavaScript files are analyzed for API calls using pattern matching and AST parsing techniques.</p>
+                            <div class="code-snippet">
+                                <code>axios.get('/api/v1/search?q=' + query)</code>
+                            </div>
+                        </div>
+                        <div class="education-item">
+                            <h3>3. Network Monitoring</h3>
+                            <p>Browser DevTools Protocol is used to monitor actual network requests made by the page.</p>
+                            <div class="code-snippet">
+                                <code>GET /api/v1/cart HTTP/1.1</code>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card__header">
+                    <h2>⚖️ Best Practices & Legal Considerations</h2>
+                </div>
+                <div class="card__body">
+                    <div class="practices-grid">
+                        <div class="practice-item">
+                            <h4>🤖 Respect robots.txt</h4>
+                            <p>Always check and respect the robots.txt file before scraping</p>
+                        </div>
+                        <div class="practice-item">
+                            <h4>⏱️ Rate limiting</h4>
+                            <p>Implement delays between requests to avoid overwhelming the server</p>
+                        </div>
+                        <div class="practice-item">
+                            <h4>📜 Legal compliance</h4>
+                            <p>Ensure your scraping activities comply with terms of service and applicable laws</p>
+                        </div>
+                        <div class="practice-item">
+                            <h4>🛡️ Ethical considerations</h4>
+                            <p>Only scrape publicly available data and respect privacy</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
