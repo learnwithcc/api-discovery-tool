@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "generatedAt": "2025-05-30T15:39:36.541Z",
+    "tasksAnalyzed": 1,
+    "totalTasks": 16,
+    "analysisCount": 1,
+    "thresholdScore": 5,
+    "projectName": "Taskmaster",
+    "usedResearch": true
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 7,
+      "taskTitle": "Develop Results Processing and Analysis Module",
+      "complexityScore": 9,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Break down the development of the Results Processing and Analysis Module into subtasks covering deduplication algorithm implementation, API type categorization logic, confidence scoring system, pattern recognition for API conventions, machine learning integration (scikit-learn 1.2.2), database integration, and caching mechanism. Ensure each subtask includes design, implementation, and testing steps.",
+      "reasoning": "This task involves multiple advanced components: algorithm development (deduplication, categorization), machine learning integration, pattern recognition, database and caching integration, and comprehensive testing. Each component is non-trivial and requires specialized knowledge, making the overall complexity high. The breadth and depth of the requirements justify a high complexity score and the need for at least seven distinct subtasks to ensure clarity, parallelization, and maintainability."
+    }
+  ]
+}
