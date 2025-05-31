@@ -286,104 +286,131 @@ class ThemeManager {
 // Analysis simulation
 class AnalysisSimulator {
   constructor() {
-    this.isAnalyzing = false;
+    this.analyzeBtn = document.getElementById('analyzeBtn');
+    this.demoBtn = document.getElementById('demoBtn');
+    this.urlInput = document.getElementById('urlInput');
+    this.resultsSection = document.getElementById('resultsSection');
+    this.loadingSpinner = document.getElementById('loadingSpinner');
+    this.analyzeText = document.getElementById('analyzeText');
+
+    // Summary elements
+    this.targetUrlElement = document.getElementById('targetUrl');
+    this.discoveryTimeElement = document.getElementById('discoveryTime');
+    this.totalApisElement = document.getElementById('totalApis');
+    this.totalRequestsElement = document.getElementById('totalRequests');
+    this.totalFrameworksElement = document.getElementById('totalFrameworks');
+    
+    // Table body elements
+    this.apisTableBody = document.getElementById('apisTableBody');
+    this.frameworksTableBody = document.getElementById('frameworksTableBody');
+    this.networkTableBody = document.getElementById('networkTableBody');
+
     this.setupEventListeners();
   }
 
   setupEventListeners() {
-    document.getElementById('analyzeBtn').addEventListener('click', () => {
-      this.startAnalysis();
-    });
-
-    document.getElementById('demoBtn').addEventListener('click', () => {
-      this.showDemoResults();
-    });
-
-    document.getElementById('demoSelector').addEventListener('change', (e) => {
-      this.loadDemoData(e.target.value);
-    });
+    this.analyzeBtn.addEventListener('click', () => this.startAnalysis());
+    this.demoBtn.addEventListener('click', () => this.showDemoResults());
   }
 
   async startAnalysis() {
-    if (this.isAnalyzing) return;
-
-    const url = document.getElementById('urlInput').value;
-    if (!url) {
-      alert('Please enter a website URL');
+    const targetUrl = this.urlInput.value.trim();
+    if (!targetUrl) {
+      alert('Please enter a valid URL.');
       return;
     }
 
-    this.isAnalyzing = true;
     this.showLoadingState(true);
+    this.resultsSection.classList.add('hidden'); // Hide previous results
 
-    // Simulate analysis progress
-    await this.simulateProgress();
+    // Clear previous results from tables and summary
+    this.targetUrlElement.textContent = '-';
+    this.discoveryTimeElement.textContent = '-';
+    this.totalApisElement.textContent = '0';
+    this.totalRequestsElement.textContent = '0';
+    this.totalFrameworksElement.textContent = '0';
+    this.apisTableBody.innerHTML = '';
+    this.frameworksTableBody.innerHTML = '';
+    this.networkTableBody.innerHTML = '';
 
-    // Show results with entered URL
-    const selectedDemo = document.getElementById('demoSelector').value;
-    const results = { ...demoData[selectedDemo] };
-    results.target_url = url;
-    results.discovery_timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    try {
+      // Prepare data for the backend /api/process endpoint
+      const requestData = {
+        discovery_method: "website_analysis", // Or another appropriate method name
+        data: { url: targetUrl }, // The backend will decide how to handle this
+        openapi_spec: null,       // No pre-existing spec for this type of analysis
+        http_interactions: null   // No pre-existing interactions for this type of analysis
+      };
 
-    this.displayResults(results);
-    this.showLoadingState(false);
-    this.isAnalyzing = false;
-  }
+      console.log("Sending request to /api/process:", requestData);
 
-  async simulateProgress() {
-    const steps = [
-      'Fetching website content...',
-      'Analyzing HTML source code...',
-      'Parsing JavaScript files...',
-      'Monitoring network requests...',
-      'Detecting frameworks...',
-      'Compiling results...'
-    ];
+      const response = await fetch('/api/process', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+      });
 
-    const overlay = this.createLoadingOverlay();
-    document.body.appendChild(overlay);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(`HTTP error ${response.status}: ${errorData.message || 'Failed to analyze website.'}`);
+      }
 
-    for (let i = 0; i < steps.length; i++) {
-      const progress = ((i + 1) / steps.length) * 100;
-      overlay.querySelector('.loading-text').textContent = steps[i];
-      overlay.querySelector('.progress-fill').style.width = `${progress}%`;
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const results = await response.json();
+      console.log("Received results from /api/process:", results);
+      
+      // Assuming the backend returns a structure that can be used by displayResults
+      // We might need to adapt what displayResults expects or what the backend returns.
+      // For now, let's construct a similar structure to the demo data
+      // based on what `ResultProcessor` is expected to return.
+
+      const frontendFormattedResults = {
+        target_url: targetUrl,
+        discovery_timestamp: new Date().toISOString(), // Use current time
+        summary: {
+          total_apis_discovered: results.analysis_summary?.api_conventions ? Object.keys(results.analysis_summary.api_conventions).length : 0, // Example
+          total_network_requests: results.analysis_summary?.api_conventions?.http_methods?.observed_methods ? Object.values(results.analysis_summary.api_conventions.http_methods.observed_methods).reduce((a, b) => a + b, 0) : 0, // Example
+          javascript_frameworks: results.analysis_summary?.api_conventions?.frameworks || [] // Example
+        },
+        // The `ResultProcessor` output under `api_conventions` would need to be mapped
+        // to these structures if we want to display them in the current tables.
+        // This is a placeholder and needs careful mapping.
+        discovered_apis: [], // Placeholder - map from results.analysis_summary.api_conventions
+        javascript_frameworks: [], // Placeholder - map from results.analysis_summary.api_conventions
+        network_requests: [] // Placeholder - map from results.analysis_summary.api_conventions
+      };
+      
+      // TODO: Map data from `results.analysis_summary.api_conventions` (and other parts of `results`)
+      // to `discovered_apis`, `javascript_frameworks`, `network_requests` tables.
+      // For now, we'll just log what we got and show that the analysis is "done"
+      // by hiding the spinner. The tables will be empty.
+      
+      this.displayResults(frontendFormattedResults); // This will show empty tables for now.
+      
+    } catch (error) {
+      console.error('Analysis error:', error);
+      alert(`Analysis failed: ${error.message}`);
+      // Potentially display error in the UI
+    } finally {
+      this.showLoadingState(false);
     }
-
-    document.body.removeChild(overlay);
-  }
-
-  createLoadingOverlay() {
-    const overlay = document.createElement('div');
-    overlay.className = 'loading-overlay';
-    overlay.innerHTML = `
-      <div class="loading-content">
-        <h3>🔍 Analyzing Website</h3>
-        <p class="loading-text">Initializing analysis...</p>
-        <div class="progress-bar">
-          <div class="progress-fill" style="width: 0%"></div>
-        </div>
-        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
-          This may take a few moments...
-        </p>
-      </div>
-    `;
-    return overlay;
   }
 
   showLoadingState(show) {
-    const btn = document.getElementById('analyzeBtn');
-    const text = document.getElementById('analyzeText');
-    const spinner = document.getElementById('loadingSpinner');
-
     if (show) {
-      text.classList.add('hidden');
-      spinner.classList.remove('hidden');
-      btn.disabled = true;
+      this.analyzeBtn.disabled = true;
+      this.analyzeText.classList.add('hidden');
+      this.loadingSpinner.classList.remove('hidden');
+      this.createLoadingOverlay(); // Create overlay when loading starts
     } else {
-      text.classList.remove('hidden');
-      spinner.classList.add('hidden');
-      btn.disabled = false;
+      this.analyzeBtn.disabled = false;
+      this.analyzeText.classList.remove('hidden');
+      this.loadingSpinner.classList.add('hidden');
+      const overlay = document.getElementById('loadingOverlay');
+      if (overlay) {
+        overlay.remove(); // Remove overlay when loading finishes
+      }
     }
   }
 
@@ -398,27 +425,27 @@ class AnalysisSimulator {
   }
 
   displayResults(results) {
-    const resultsSection = document.getElementById('resultsSection');
-    resultsSection.classList.remove('hidden');
-    resultsSection.classList.add('fade-in');
+    this.resultsSection.classList.remove('hidden');
+    
+    this.targetUrlElement.textContent = results.target_url || '-';
+    this.discoveryTimeElement.textContent = results.discovery_timestamp ? new Date(results.discovery_timestamp).toLocaleString() : '-';
+    
+    if (results.summary) {
+        this.totalApisElement.textContent = results.summary.total_apis_discovered || 0;
+        this.totalRequestsElement.textContent = results.summary.total_network_requests || 0;
+        this.totalFrameworksElement.textContent = results.summary.javascript_frameworks?.length || 0;
+    } else {
+        this.totalApisElement.textContent = '0';
+        this.totalRequestsElement.textContent = '0';
+        this.totalFrameworksElement.textContent = '0';
+    }
 
-    // Update summary
-    document.getElementById('targetUrl').textContent = results.target_url;
-    document.getElementById('discoveryTime').textContent = results.discovery_timestamp;
-    document.getElementById('totalApis').textContent = results.summary.total_apis_discovered;
-    document.getElementById('totalRequests').textContent = results.summary.total_network_requests;
-    document.getElementById('totalFrameworks').textContent = results.summary.javascript_frameworks.length;
-
-    // Populate tables
-    this.populateApisTable(results.discovered_apis);
-    this.populateFrameworksTable(results.javascript_frameworks);
-    this.populateNetworkTable(results.network_requests);
-
-    // Store current results for export
-    this.currentResults = results;
+    this.populateApisTable(results.discovered_apis || []);
+    this.populateFrameworksTable(results.javascript_frameworks || []);
+    this.populateNetworkTable(results.network_requests || []);
 
     // Scroll to results
-    resultsSection.scrollIntoView({ behavior: 'smooth' });
+    this.resultsSection.scrollIntoView({ behavior: 'smooth' });
   }
 
   populateApisTable(apis) {
@@ -470,6 +497,24 @@ class AnalysisSimulator {
       `;
       tbody.appendChild(row);
     });
+  }
+
+  createLoadingOverlay() {
+    const overlay = document.createElement('div');
+    overlay.className = 'loading-overlay';
+    overlay.innerHTML = `
+      <div class="loading-content">
+        <h3>🔍 Analyzing Website</h3>
+        <p class="loading-text">Initializing analysis...</p>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: 0%"></div>
+        </div>
+        <p style="font-size: var(--font-size-sm); color: var(--color-text-secondary);">
+          This may take a few moments...
+        </p>
+      </div>
+    `;
+    return overlay;
   }
 }
 

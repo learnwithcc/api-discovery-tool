@@ -1,1 +1,1 @@
-# This file makes tests a sub-package 
+# This file makes the 'tests' directory a Python package. 
