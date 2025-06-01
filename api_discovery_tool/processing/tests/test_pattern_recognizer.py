@@ -244,5 +244,97 @@ class TestAPIPatternRecognizer(unittest.TestCase):
         # Check a specific value from one of the sub-results to ensure it ran
         self.assertEqual(all_patterns["versioning"]['path_versions'], ['1', '2.0'])
 
+    def test_recognize_from_website_data(self):
+        """Test the recognize_from_website_data method."""
+        recognizer = APIPatternRecognizer() # No spec or interactions needed for this method
+
+        # Test case 1: URLs and text with patterns
+        sample_urls = [
+            "http://example.com/api/v1/users",
+            "http://example.com/service/v2.beta/products",
+            "http://example.com/core/auth/login",
+            "http://example.com/api/items?item_id=123",
+            "http://example.com/developer/docs/payment_api_v3.html"
+        ]
+        # Text content analysis is currently a placeholder in the main code,
+        # so this test will focus on URL patterns.
+        sample_text_content = [
+            "Welcome to our v1 API. Check out the /api/v1/status endpoint.",
+            "Our new product service (v2) is now available.",
+            "API Key required for /service/ endpoint."
+        ]
+
+        expected_patterns = {
+            "versioning_schemes": sorted(["1", "2.beta", "3"]), # v3 from payment_api_v3.html
+            "common_paths": sorted(["api", "core", "service"]),
+            "keyword_matches_in_urls": [ # Only one entry per unique URL that has at least one keyword
+                {"url": "http://example.com/api/v1/users", "keyword": "user"}, # or "api"
+                {"url": "http://example.com/service/v2.beta/products", "keyword": "product"}, # or "service"
+                {"url": "http://example.com/core/auth/login", "keyword": "auth"}, # or "core"
+                {"url": "http://example.com/api/items?item_id=123", "keyword": "item"}, # or "api"
+                {"url": "http://example.com/developer/docs/payment_api_v3.html", "keyword": "doc"} # or "payment" or "dev"
+            ],
+            "keyword_matches_in_text": [] # As text analysis is placeholder
+        }
+        # Normalize keyword_matches_in_urls for comparison as order of keywords for a single URL isn't guaranteed
+        # The current implementation picks the first keyword that matches a URL.
+        # To make test deterministic, we might need to sort the keywords or be specific.
+        # For now, the `recognize_from_website_data` deduplicates based on URL, keeping first match.
+        # Let's adjust expected to reflect this behavior more precisely or make the test more robust.
+
+        result = recognizer.recognize_from_website_data(sample_urls, sample_text_content)
+
+        self.assertCountEqual(result["versioning_schemes"], expected_patterns["versioning_schemes"])
+        self.assertCountEqual(result["common_paths"], expected_patterns["common_paths"])
+
+        # For keyword_matches_in_urls, the order of items in the list and the specific keyword chosen
+        # (if multiple apply to one URL) needs to be handled.
+        # The current implementation seems to take the first keyword that matches.
+        # Let's check if the URLs are present and at least one of their keywords.
+        self.assertEqual(len(result["keyword_matches_in_urls"]), len(expected_patterns["keyword_matches_in_urls"]))
+
+        # A more robust check for keyword_matches_in_urls:
+        # Create a dictionary of URL -> keyword from the result for easier lookup
+        result_keyword_urls = {item['url']: item['keyword'] for item in result['keyword_matches_in_urls']}
+        expected_keyword_urls_options = {
+            "http://example.com/api/v1/users": ["user", "api"],
+            "http://example.com/service/v2.beta/products": ["product", "service"],
+            "http://example.com/core/auth/login": ["auth", "core"],
+            "http://example.com/api/items?item_id=123": ["item", "api"],
+            "http://example.com/developer/docs/payment_api_v3.html": ["doc", "dev", "payment"]
+        }
+        for expected_item in expected_patterns["keyword_matches_in_urls"]:
+            url = expected_item["url"]
+            self.assertIn(url, result_keyword_urls)
+            # Check if the found keyword is one of the expected options for that URL
+            self.assertIn(result_keyword_urls[url], expected_keyword_urls_options[url])
+
+
+        self.assertListEqual(result["keyword_matches_in_text"], expected_patterns["keyword_matches_in_text"])
+
+
+        # Test case 2: Empty inputs
+        empty_result = recognizer.recognize_from_website_data([], [])
+        expected_empty = {
+            "versioning_schemes": [],
+            "common_paths": [],
+            "keyword_matches_in_urls": [],
+            "keyword_matches_in_text": []
+        }
+        self.assertEqual(empty_result, expected_empty)
+
+        # Test case 3: No patterns found
+        no_pattern_urls = ["http://example.com/blog/article-one", "http://example.com/about-us"]
+        no_pattern_text = ["Just some random text without API mentions."]
+        no_pattern_result = recognizer.recognize_from_website_data(no_pattern_urls, no_pattern_text)
+        self.assertEqual(no_pattern_result, expected_empty)
+
+        # Test case 4: URLs that might look like versions but aren't standard path versions
+        non_standard_urls = ["http://example.com/product/v-123/details", "http://example.com/api-v1.0-docs"]
+        non_standard_result = recognizer.recognize_from_website_data(non_standard_urls, [])
+        # Expect no versioning if _identify_versioning_schemes_in_path is strict (e.g. /v1/)
+        self.assertEqual(len(non_standard_result["versioning_schemes"]), 0)
+
+
 if __name__ == '__main__':
-    unittest.main(argv=['first-arg-is-ignored'], exit=False) 
+    unittest.main(argv=['first-arg-is-ignored'], exit=False)

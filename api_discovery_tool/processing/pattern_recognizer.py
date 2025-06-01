@@ -523,4 +523,23 @@ if __name__ == '__main__':
     recognizer = APIPatternRecognizer(openapi_spec=mock_openapi_spec, http_interactions=mock_http_interactions)
     all_patterns = recognizer.identify_all_patterns()
     import json
-    print(json.dumps(all_patterns, indent=2)) 
+    print(json.dumps(all_patterns, indent=2))
+
+    # Example for recognize_from_website_data
+    print("\n--- Website Data Recognition Example ---")
+    website_urls = [
+        "https://example.com/api/v1/users",
+        "https://example.com/service/data/v2/items",
+        "https://example.com/core/auth/login",
+        "https://example.com/api/products?id=123",
+        "https://example.com/documentation/payment-api.html"
+    ]
+    website_text = [
+        "Welcome to our API. Use your API key to authenticate.",
+        "Explore our REST API for user management.",
+        "GraphQL endpoint available at /graphql. See swagger docs.",
+        "OpenAPI specification can be found here.",
+        "This text does not have keywords."
+    ]
+    website_patterns = recognizer.recognize_from_website_data(website_urls, website_text)
+    print(json.dumps(website_patterns, indent=2))
