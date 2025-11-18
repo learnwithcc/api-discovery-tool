@@ -1,13 +1,67 @@
+"""
+API Endpoint Deduplication Module
+
+This module provides functionality to identify and remove duplicate API endpoints from
+discovery results. Endpoints are considered duplicates based on normalized URL matching
+and HTTP method comparison.
+
+Deduplication Algorithm:
+    1. Normalize each endpoint's URL (case-insensitive, protocol-agnostic, no trailing slash)
+    2. Create a unique signature combining normalized URL and HTTP method
+    3. Track seen signatures in a set
+    4. Keep only the first occurrence of each unique signature
+
+URL Normalization Process:
+    - Convert to lowercase for case-insensitive comparison
+    - Remove protocol prefixes (http://, https://, ws://, wss://)
+    - Remove 'www.' subdomain
+    - Remove trailing slashes
+
+Signature Generation:
+    - For HTTP/HTTPS endpoints: (normalized_url, HTTP_METHOD) tuple
+    - For WebSocket and other endpoints: normalized_url string
+    - Invalid or empty URLs return None
+
+Usage Example:
+    >>> endpoints = [
+    ...     {"url": "http://example.com/api/users", "method": "GET"},
+    ...     {"url": "https://example.com/api/users", "method": "GET"},  # Duplicate
+    ...     {"url": "http://example.com/api/users", "method": "POST"},  # Different method
+    ... ]
+    >>> unique_endpoints = deduplicate_endpoints(endpoints)
+    >>> len(unique_endpoints)
+    2
+
+Functions:
+    normalize_url: Normalizes a URL string for consistent comparison
+    get_endpoint_signature: Generates a unique signature for an endpoint
+    deduplicate_endpoints: Removes duplicate endpoints from a list
+"""
+
 import re
 from typing import Any, Dict, List, Set, Tuple, Union
 
 def normalize_url(url: str) -> str:
     """
-    Normalizes a URL by:
-    1. Converting to lowercase.
-    2. Removing http://, https://, ws://, or wss://.
-    3. Removing www.
-    4. Removing trailing slashes.
+    Normalizes a URL for consistent comparison across different representations.
+
+    Normalization steps:
+    1. Convert to lowercase for case-insensitive matching
+    2. Remove protocol prefixes (http://, https://, ws://, wss://)
+    3. Remove 'www.' subdomain prefix
+    4. Remove trailing slashes
+
+    Args:
+        url: The URL string to normalize
+
+    Returns:
+        The normalized URL string, or empty string if input is invalid
+
+    Examples:
+        >>> normalize_url("HTTP://WWW.Example.com/API/")
+        'example.com/api'
+        >>> normalize_url("https://example.com/users")
+        'example.com/users'
     """
     if not url or not isinstance(url, str):
         return ""
@@ -19,10 +73,27 @@ def normalize_url(url: str) -> str:
 
 def get_endpoint_signature(endpoint: Dict[str, Any]) -> Union[Tuple[str, str], str, None]:
     """
-    Generates a unique signature for an endpoint.
-    For HTTP/S endpoints, it's (normalized_url, METHOD).
-    For others (e.g., WebSocket), it's just normalized_url.
-    Returns None if the URL is invalid or empty after normalization.
+    Generates a unique signature for an endpoint to identify duplicates.
+
+    The signature format depends on whether the endpoint has an HTTP method:
+    - With method: (normalized_url, uppercase_method) tuple
+    - Without method: normalized_url string
+    - Invalid URL: None
+
+    This allows the same URL with different HTTP methods (e.g., GET vs POST)
+    to be treated as distinct endpoints.
+
+    Args:
+        endpoint: Dictionary containing at least a 'url' field, optionally a 'method' field
+
+    Returns:
+        A tuple of (normalized_url, method), a string (normalized_url), or None if invalid
+
+    Examples:
+        >>> get_endpoint_signature({"url": "http://example.com/api", "method": "GET"})
+        ('example.com/api', 'GET')
+        >>> get_endpoint_signature({"url": "ws://example.com/socket"})
+        'example.com/socket'
     """
     url = endpoint.get("url")
     method = endpoint.get("method")

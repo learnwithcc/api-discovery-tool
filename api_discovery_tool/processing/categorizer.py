@@ -1,3 +1,44 @@
+"""
+API Type Categorization Module
+
+This module provides functionality to categorize discovered API endpoints into specific types
+based on their characteristics, including URL patterns, content types, request/response data,
+and protocol indicators.
+
+Supported API Types:
+    - REST: RESTful APIs using standard HTTP methods and content types (JSON, XML)
+    - GraphQL: GraphQL APIs with characteristic query/mutation patterns
+    - SOAP: SOAP APIs using XML envelopes and WSDL
+    - WebSocket: Real-time communication APIs using ws:// or wss:// protocols
+    - Unknown: Endpoints that don't match any known API pattern
+
+Categorization Decision Tree:
+    1. Check for WebSocket protocol (ws://, wss://)
+    2. Check for GraphQL indicators (/graphql endpoint, query/mutation patterns)
+    3. Check for SOAP indicators (WSDL, SOAP envelopes, soap+xml content-type)
+    4. Check for REST indicators (JSON/XML content-types, standard HTTP methods, OpenAPI spec)
+    5. Default to Unknown if no patterns match
+
+Constants:
+    API_TYPE_REST: Identifier for REST APIs
+    API_TYPE_GRAPHQL: Identifier for GraphQL APIs
+    API_TYPE_SOAP: Identifier for SOAP APIs
+    API_TYPE_WEBSOCKET: Identifier for WebSocket APIs
+    API_TYPE_UNKNOWN: Identifier for unrecognized API types
+    NON_API_CONTENT_TYPES: Content types that indicate non-API resources
+    DEFINITELY_REST_CONTENT_TYPES: Content types that strongly indicate REST APIs
+
+Usage Example:
+    >>> endpoint_data = {
+    ...     "url": "https://api.example.com/users",
+    ...     "method": "GET",
+    ...     "response_headers": {"Content-Type": "application/json"}
+    ... }
+    >>> api_type = categorize_api_type(endpoint_data)
+    >>> print(api_type)
+    'REST'
+"""
+
 import re
 from typing import Any, Dict
 
@@ -30,6 +71,18 @@ DEFINITELY_REST_CONTENT_TYPES = [
 ]
 
 def _get_content_type(endpoint_data: Dict[str, Any]) -> str:
+    """
+    Extract the content-type from endpoint response headers.
+
+    Performs case-insensitive search for the Content-Type header and returns
+    its value in lowercase for consistent matching.
+
+    Args:
+        endpoint_data: Dictionary containing endpoint information with response_headers
+
+    Returns:
+        The lowercase content-type value, or empty string if not found
+    """
     headers = endpoint_data.get("response_headers", {})
     content_type_val = ""
     if isinstance(headers, dict):
@@ -40,18 +93,44 @@ def _get_content_type(endpoint_data: Dict[str, Any]) -> str:
     return content_type_val
 
 def _check_websocket(endpoint_data: Dict[str, Any]) -> bool:
+    """
+    Check if the endpoint is a WebSocket connection.
+
+    WebSocket APIs are identified by the ws:// or wss:// protocol prefixes.
+
+    Args:
+        endpoint_data: Dictionary containing endpoint information with a url field
+
+    Returns:
+        True if the URL uses WebSocket protocol, False otherwise
+    """
     url = endpoint_data.get("url")
     if not isinstance(url, str) or not url:
         return False
     return url.lower().startswith("ws://") or url.lower().startswith("wss://")
 
 def _check_graphql(endpoint_data: Dict[str, Any]) -> bool:
+    """
+    Check if the endpoint is a GraphQL API.
+
+    GraphQL APIs are identified by:
+    - URL ending with /graphql
+    - Content-Type: application/graphql
+    - Request body containing 'query' or 'mutation' keywords
+    - Response body with GraphQL-specific structure (data/errors fields)
+
+    Args:
+        endpoint_data: Dictionary containing endpoint information
+
+    Returns:
+        True if the endpoint appears to be GraphQL, False otherwise
+    """
     url_str = endpoint_data.get("url")
     url = url_str.lower() if isinstance(url_str, str) else ""
 
     method = endpoint_data.get("method", "").upper()
     content_type = _get_content_type(endpoint_data)
-              
+
     request_body = endpoint_data.get("request_body", "")
     if not isinstance(request_body, str): request_body = str(request_body)
 
@@ -67,9 +146,24 @@ def _check_graphql(endpoint_data: Dict[str, Any]) -> bool:
     return False
 
 def _check_soap(endpoint_data: Dict[str, Any]) -> bool:
+    """
+    Check if the endpoint is a SOAP API.
+
+    SOAP APIs are identified by:
+    - URL containing ?WSDL query parameter
+    - Content-Type: application/soap+xml
+    - Content-Type: text/xml with SOAP envelope in response body
+    - Response body containing SOAP envelope tags (soap:Envelope, soapenv:Envelope, etc.)
+
+    Args:
+        endpoint_data: Dictionary containing endpoint information
+
+    Returns:
+        True if the endpoint appears to be SOAP, False otherwise
+    """
     url_str = endpoint_data.get("url")
     url = url_str.lower() if isinstance(url_str, str) else ""
-    
+
     content_type = _get_content_type(endpoint_data)
     response_body_str = endpoint_data.get("response_body", "")
     response_body = response_body_str.lower() if isinstance(response_body_str, str) else ""
@@ -88,11 +182,28 @@ def _check_soap(endpoint_data: Dict[str, Any]) -> bool:
     return False
 
 def _check_rest(endpoint_data: Dict[str, Any]) -> bool:
+    """
+    Check if the endpoint is a REST API.
+
+    REST APIs are identified using a multi-rule decision process:
+
+    Rule 1: OpenAPI specification present (strongest indicator)
+    Rule 2: Exclude non-API content types (HTML, CSS, images, etc.)
+    Rule 3: Include known REST content types (JSON, XML, octet-stream, etc.)
+    Rule 4: Standard HTTP methods (GET, POST, PUT, DELETE, PATCH, etc.)
+            without static file extensions
+
+    Args:
+        endpoint_data: Dictionary containing endpoint information
+
+    Returns:
+        True if the endpoint appears to be REST, False otherwise
+    """
     method = endpoint_data.get("method", "").upper()
     content_type = _get_content_type(endpoint_data)
     url_str = endpoint_data.get("url")
     url = url_str if isinstance(url_str, str) else "" # Keep original case for path splitting if needed, normalize later
-    
+
     openapi_spec = endpoint_data.get("openapi_spec")
 
     # Rule 1: If OpenAPI spec is present, it's REST (very strong signal)
@@ -102,13 +213,13 @@ def _check_rest(endpoint_data: Dict[str, Any]) -> bool:
     # Rule 2: Exclude if content type is definitively non-API (unless overridden by OpenAPI spec)
     for non_api_ct in NON_API_CONTENT_TYPES:
         if non_api_ct in content_type:
-            return False 
+            return False
 
     # Rule 3: Definitely REST if content type is a known API type
     for rest_ct in DEFINITELY_REST_CONTENT_TYPES:
         if rest_ct in content_type:
             return True
-    
+
     # Rule 4: Common methods without specific problematic content types, and URL doesn't look like a static file
     common_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]
     if method in common_methods:

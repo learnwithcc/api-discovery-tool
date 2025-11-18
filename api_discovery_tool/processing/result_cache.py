@@ -1,3 +1,55 @@
+"""
+Result Caching Module
+
+This module provides persistent caching functionality for API discovery results using
+Python's shelve module. It helps avoid redundant API discovery operations by storing
+and retrieving previously discovered results based on their input parameters.
+
+Cache Strategy:
+    - Persistent storage using shelve (file-based key-value store)
+    - TTL (Time-To-Live) based expiration with configurable max age
+    - SHA256 hashing of parameters for consistent cache keys
+    - Automatic stale data removal
+    - Thread-safe context manager support
+
+Cache Key Generation:
+    - Parameters are serialized to canonical JSON (sorted keys)
+    - SHA256 hash of the JSON string creates a stable cache key
+    - Same parameters always generate the same cache key
+
+Cache Item Structure:
+    - timestamp: ISO format UTC timestamp when item was cached
+    - data: The actual cached data (any serializable Python object)
+
+TTL Behavior:
+    - Default max age: 7 days
+    - Items older than max_age are considered stale
+    - Stale items are automatically removed on get() or clear_stale()
+    - Timezone-aware datetime handling for accurate age calculation
+
+Cache Directory:
+    - Default: ~/.cache/api_discovery_tool/ (user home directory)
+    - Fallback: ./.cache/api_discovery_tool/ (current working directory)
+    - Automatically created if it doesn't exist
+    - Graceful fallback if home directory is not writable
+
+Usage Example:
+    >>> with ResultCache(max_age_seconds=3600) as cache:
+    ...     params = {"url": "https://api.example.com", "method": "analyze"}
+    ...
+    ...     # Try to get cached result
+    ...     result = cache.get(params)
+    ...     if result is None:
+    ...         # Not cached or expired, perform operation
+    ...         result = perform_expensive_operation(params)
+    ...         cache.put(params, result)
+    ...
+    ...     return result
+
+Classes:
+    ResultCache: Main caching class with get, put, clear_stale, and clear_all methods
+"""
+
 import shelve
 import hashlib
 import json

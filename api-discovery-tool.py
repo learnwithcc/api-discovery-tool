@@ -73,7 +73,28 @@ class APIDiscoveryTool:
         }
 
     def check_robots_txt(self):
-        """Check robots.txt file for crawling permissions"""
+        """
+        Check robots.txt file for crawling permissions.
+
+        Fetches and parses the target website's robots.txt file to determine
+        if crawling is allowed. Respects the robots.txt standard for ethical
+        web scraping.
+
+        Returns:
+            bool: True if crawling is allowed or robots.txt check is disabled,
+                  False if robots.txt explicitly disallows crawling
+
+        Behavior:
+            - Returns True immediately if respect_robots is False
+            - Fetches robots.txt from the root of the target domain
+            - Uses '*' (wildcard) user agent for checking
+            - Returns True if robots.txt is inaccessible (permissive fallback)
+            - Logs warnings for disallowed crawling or fetch errors
+
+        Notes:
+            Respecting robots.txt is considered best practice and ethical behavior
+            even though it may not be legally enforced in all jurisdictions.
+        """
         if not self.respect_robots:
             return True
             
@@ -98,7 +119,46 @@ class APIDiscoveryTool:
             return True
 
     def analyze_html_source(self):
-        """Analyze HTML source code for API endpoints and patterns"""
+        """
+        Analyze HTML source code for API endpoints and patterns.
+
+        Fetches the target webpage and examines its HTML structure to discover:
+        - Inline and external JavaScript files
+        - Data attributes containing API URLs
+        - Form actions that point to API endpoints
+
+        Discovery Methods:
+            1. Script Tags Analysis
+               - Parses inline <script> tag contents
+               - Fetches and analyzes external scripts (<script src="...">)
+
+            2. Data Attributes
+               - Searches for elements with data-api attributes
+               - Records API URLs found in these attributes
+
+            3. Form Actions
+               - Examines <form> action attributes
+               - Identifies forms submitting to API endpoints
+               - Records the form's HTTP method (GET/POST)
+
+        Side Effects:
+            - Populates self.discovered_apis with found endpoints
+            - Calls analyze_javascript_code() for each script
+            - Calls analyze_external_script() for external JavaScript files
+
+        Error Handling:
+            - Logs errors but continues execution if fetching fails
+            - Handles HTTP errors gracefully
+            - Continues analysis even if individual scripts fail
+
+        Discovered API Format:
+            {
+                'url': str,                  # API endpoint URL
+                'method': str,               # Discovery method used
+                'element': str (optional),   # HTML element snippet
+                'form_method': str (optional) # HTTP method for forms
+            }
+        """
         try:
             response = self.session.get(self.target_url)
             response.raise_for_status()
@@ -138,7 +198,55 @@ class APIDiscoveryTool:
             self.logger.error(f"Error analyzing HTML source: {e}")
 
     def analyze_javascript_code(self, js_code):
-        """Analyze JavaScript code for API endpoints and frameworks"""
+        """
+        Analyze JavaScript code for API endpoints and framework usage.
+
+        Searches JavaScript code for:
+        1. API endpoint patterns (URLs matching common API structures)
+        2. API call patterns (fetch, axios, XHR calls)
+        3. JavaScript framework indicators
+
+        Args:
+            js_code (str): JavaScript source code to analyze
+
+        Discovery Patterns:
+            API Endpoints:
+                - /api/[path]
+                - /v[0-9]/[path]
+                - /rest/[path]
+                - /graphql
+                - .json files
+                - .xml files
+                - /services/[path]
+                - /endpoints/[path]
+                - /data/[path]
+                - /feeds/
+
+            API Calls:
+                - fetch("url")
+                - .get("url"), .post("url")
+                - xhr.open("METHOD", "url")
+                - axios.get/post/etc("url")
+
+            Frameworks Detected:
+                - React
+                - Vue.js
+                - Angular
+                - jQuery
+                - Backbone.js
+                - Ember.js
+                - Svelte
+                - Alpine.js
+                - Stimulus
+
+        Side Effects:
+            - Appends discoveries to self.discovered_apis
+            - Appends framework detections to self.javascript_patterns
+
+        Notes:
+            Framework detection helps understand the application architecture
+            and may indicate the presence of API-driven functionality.
+        """
         # Check for API endpoint patterns
         for pattern in self.api_patterns:
             matches = re.findall(pattern, js_code, re.IGNORECASE)
@@ -179,7 +287,27 @@ class APIDiscoveryTool:
                     break
 
     def analyze_external_script(self, script_src):
-        """Analyze external JavaScript files"""
+        """
+        Fetch and analyze external JavaScript files.
+
+        Args:
+            script_src (str): Relative or absolute URL of the external JavaScript file
+
+        Process:
+            1. Resolve relative URLs against the target URL
+            2. Fetch the external script with 10-second timeout
+            3. Pass the script content to analyze_javascript_code()
+
+        Error Handling:
+            - Logs warnings for failed fetches
+            - Handles HTTP errors (404, 403, etc.)
+            - Handles timeout errors
+            - Continues execution even if individual scripts fail
+
+        Notes:
+            External scripts often contain production API endpoints and
+            may reveal more information than inline scripts.
+        """
         try:
             full_url = urljoin(self.target_url, script_src)
             response = self.session.get(full_url, timeout=10)
@@ -189,7 +317,58 @@ class APIDiscoveryTool:
             self.logger.warning(f"Could not analyze external script {script_src}: {e}")
 
     def discover_with_selenium(self):
-        """Use Selenium to discover APIs through network monitoring"""
+        """
+        Use Selenium WebDriver to discover APIs through dynamic analysis.
+
+        Launches a headless Chrome browser to:
+        1. Execute JavaScript and render the complete page
+        2. Monitor network traffic for API calls
+        3. Detect JavaScript frameworks in the browser context
+        4. Trigger interactions to reveal additional API endpoints
+
+        Chrome Configuration:
+            - Headless mode (configurable)
+            - No sandbox (for compatibility)
+            - Disabled dev-shm (reduces memory issues)
+            - Performance logging enabled for network monitoring
+
+        Discovery Methods:
+            1. Network Monitoring
+               - Captures all network requests via Chrome DevTools Protocol
+               - Records URLs, status codes, and MIME types
+               - Filters requests matching API patterns
+
+            2. Framework Detection
+               - Checks for framework globals in browser window context
+               - More accurate than static analysis
+               - Detects dynamically loaded frameworks
+
+            3. Interactive Discovery
+               - Clicks buttons to trigger AJAX requests
+               - Waits for API calls after each interaction
+               - Limited to first 5 buttons to avoid excessive operations
+
+        Performance Logs:
+            Parsed to extract Network.responseReceived events containing:
+            - URL of the response
+            - HTTP status code
+            - MIME type / Content-Type
+
+        Side Effects:
+            - Appends discoveries to self.network_requests
+            - Updates self.javascript_patterns with framework detections
+            - May modify browser cookies/localStorage on target site
+
+        Error Handling:
+            - Logs errors but continues if Selenium fails to start
+            - Ensures browser is closed even if errors occur
+            - Handles missing ChromeDriver gracefully
+
+        Troubleshooting:
+            - Ensure ChromeDriver is installed and in PATH
+            - Version compatibility: ChromeDriver version should match Chrome version
+            - For headless issues, try setting headless=False
+        """
         try:
             chrome_options = Options()
             if self.headless:
@@ -252,7 +431,40 @@ class APIDiscoveryTool:
             self.logger.error(f"Error with Selenium analysis: {e}")
 
     def trigger_interactions(self, driver):
-        """Trigger interactions that might reveal additional APIs"""
+        """
+        Trigger page interactions to discover additional API endpoints.
+
+        Simulates user interactions that may trigger AJAX/API calls:
+        - Button clicks
+        - Form submissions (future)
+        - Tab/accordion interactions (future)
+
+        Args:
+            driver: Selenium WebDriver instance
+
+        Current Implementation:
+            - Clicks up to 5 visible and enabled buttons
+            - Waits 1 second after each click for API calls
+            - Continues even if individual clicks fail
+
+        Limitations:
+            - Limited to basic button clicks
+            - May not discover deeply nested interactive elements
+            - Does not handle authentication-required interactions
+            - Fixed delay may miss slower API calls
+
+        Future Enhancements:
+            - Configurable interaction depth
+            - Smart waiting for network idle
+            - Form filling and submission
+            - Dropdown and modal interactions
+            - Page scrolling to trigger lazy-loading APIs
+
+        Error Handling:
+            - Logs warnings for interaction failures
+            - Continues with remaining interactions if one fails
+            - Handles stale element references
+        """
         try:
             # Click buttons that might trigger API calls
             buttons = driver.find_elements(By.TAG_NAME, "button")
@@ -268,14 +480,78 @@ class APIDiscoveryTool:
             self.logger.warning(f"Error during interaction triggers: {e}")
 
     def is_potential_api(self, url):
-        """Check if a URL looks like an API endpoint"""
+        """
+        Check if a URL matches common API endpoint patterns.
+
+        Args:
+            url (str): URL to check
+
+        Returns:
+            bool: True if URL matches any API pattern, False otherwise
+
+        Checked Patterns:
+            - /api/[path]
+            - /v[0-9]/[path]
+            - /rest/[path]
+            - /graphql
+            - .json files
+            - .xml files
+            - /services/[path]
+            - /endpoints/[path]
+            - /data/[path]
+            - /feeds/
+
+        Notes:
+            Case-insensitive matching to catch variations like /API/, /Api/, etc.
+        """
         for pattern in self.api_patterns:
             if re.search(pattern, url, re.IGNORECASE):
                 return True
         return False
 
     def discover_common_endpoints(self):
-        """Try to discover common API endpoints by making requests"""
+        """
+        Attempt to discover common API endpoints through probing.
+
+        Tests for the existence of commonly used API paths by making
+        HEAD requests to each endpoint. This is a non-invasive way to
+        discover undocumented APIs.
+
+        Probed Endpoints:
+            - /api
+            - /api/v1, /api/v2
+            - /rest
+            - /graphql
+            - /data.json
+            - /feed.xml
+            - /sitemap.xml
+
+        Method:
+            Uses HEAD requests instead of GET to minimize server load
+            and avoid downloading response bodies.
+
+        Success Criteria:
+            HTTP 200 OK status code indicates endpoint exists
+
+        Captured Information:
+            - URL of discovered endpoint
+            - HTTP status code
+            - Content-Type header
+
+        Side Effects:
+            - Appends discoveries to self.discovered_apis
+            - Makes actual HTTP requests to target server
+
+        Error Handling:
+            - Continues silently if endpoint doesn't exist (404, etc.)
+            - Handles timeout errors gracefully
+            - 5-second timeout per endpoint
+
+        Ethical Considerations:
+            - Uses HEAD instead of GET to minimize impact
+            - Respects robots.txt via prior check_robots_txt() call
+            - Limited to common, publicly documented endpoints
+        """
         common_endpoints = [
             '/api',
             '/api/v1',
@@ -302,7 +578,54 @@ class APIDiscoveryTool:
                 continue
 
     def run_discovery(self):
-        """Run the complete API discovery process"""
+        """
+        Execute the complete API discovery workflow.
+
+        Orchestrates all discovery methods in sequence:
+        1. Robots.txt compliance check
+        2. HTML source analysis
+        3. Common endpoint probing
+        4. Selenium-based dynamic analysis
+
+        Workflow:
+            1. Check robots.txt
+               - If disallowed and respect_robots=True, abort
+               - Otherwise, proceed with discovery
+
+            2. Analyze HTML Source
+               - Fetch and parse webpage HTML
+               - Extract API endpoints from scripts and forms
+               - Analyze inline and external JavaScript
+
+            3. Check Common Endpoints
+               - Probe standard API paths
+               - Record successful responses
+
+            4. Selenium Analysis
+               - Launch headless browser
+               - Monitor network traffic
+               - Detect frameworks dynamically
+               - Trigger interactions
+
+        Exit Conditions:
+            - Aborts if robots.txt disallows (when respect_robots=True)
+            - Continues even if individual methods fail
+
+        Side Effects:
+            - Populates self.discovered_apis
+            - Populates self.network_requests
+            - Populates self.javascript_patterns
+
+        Logging:
+            - Info: Progress updates for each discovery phase
+            - Warning: robots.txt violations
+            - Error: Critical failures in discovery methods
+
+        Usage:
+            tool = APIDiscoveryTool("https://example.com")
+            tool.run_discovery()
+            report = tool.generate_report()
+        """
         self.logger.info(f"Starting API discovery for {self.target_url}")
         
         # Check robots.txt first
@@ -325,7 +648,56 @@ class APIDiscoveryTool:
         self.logger.info("Discovery complete!")
 
     def generate_report(self):
-        """Generate a comprehensive report of discovered APIs"""
+        """
+        Generate a comprehensive discovery report.
+
+        Compiles all discovery results into a structured JSON-serializable report
+        containing statistics, discovered APIs, network requests, and framework
+        detections.
+
+        Returns:
+            dict: Comprehensive discovery report with the following structure:
+                {
+                    'target_url': str,
+                    'discovery_timestamp': str (ISO format),
+                    'summary': {
+                        'total_apis_discovered': int,
+                        'total_network_requests': int,
+                        'javascript_frameworks': list[str]
+                    },
+                    'discovered_apis': list[dict],
+                    'network_requests': list[dict],
+                    'javascript_frameworks': list[dict]
+                }
+
+        Report Sections:
+
+            1. Metadata
+               - target_url: The analyzed website
+               - discovery_timestamp: When the scan was performed
+
+            2. Summary Statistics
+               - total_apis_discovered: Count of discovered API endpoints
+               - total_network_requests: Count of observed network calls
+               - javascript_frameworks: Unique list of detected frameworks
+
+            3. Discovered APIs
+               - Static analysis results from HTML/JS parsing
+               - Includes discovery method and pattern used
+
+            4. Network Requests
+               - Dynamic analysis results from Selenium
+               - Actual observed API calls with status codes
+
+            5. JavaScript Frameworks
+               - Framework detections with indicators
+               - Both static and dynamic detection methods
+
+        Usage:
+            report = tool.generate_report()
+            print(f"Found {report['summary']['total_apis_discovered']} APIs")
+            tool.save_report('output.json')
+        """
         report = {
             'target_url': self.target_url,
             'discovery_timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
@@ -341,7 +713,48 @@ class APIDiscoveryTool:
         return report
 
     def save_report(self, filename='api_discovery_report.json'):
-        """Save the discovery report to a file"""
+        """
+        Save the discovery report to a JSON file.
+
+        Args:
+            filename (str): Output filename (default: 'api_discovery_report.json')
+
+        File Format:
+            Pretty-printed JSON with 2-space indentation
+            Fully compatible with standard JSON parsers
+
+        Behavior:
+            - Generates report via generate_report()
+            - Writes to specified filename
+            - Overwrites existing file if present
+            - Logs success message with filename
+
+        Usage Examples:
+            # Default filename
+            tool.save_report()
+
+            # Custom filename
+            tool.save_report('results/example_com_report.json')
+
+            # Timestamped filename
+            from datetime import datetime
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            tool.save_report(f'reports/scan_{timestamp}.json')
+
+        Error Handling:
+            - May raise IOError if file cannot be written
+            - May raise ValueError if report contains non-serializable data
+
+        Output Format:
+            {
+                "target_url": "https://example.com",
+                "discovery_timestamp": "2025-11-18 10:30:00",
+                "summary": {...},
+                "discovered_apis": [...],
+                "network_requests": [...],
+                "javascript_frameworks": [...]
+            }
+        """
         report = self.generate_report()
         with open(filename, 'w') as f:
             json.dump(report, f, indent=2)

@@ -1,3 +1,94 @@
+"""
+API Discovery Tool Flask Application
+
+This is the main Flask application that provides a REST API for the API Discovery Tool.
+It orchestrates various endpoints for health monitoring, URL validation, and API discovery
+result processing.
+
+Application Architecture:
+
+1. Flask Configuration
+   - Debug logging in development mode
+   - Production-grade logging in non-debug mode
+   - SQLAlchemy for database operations
+   - SQLite database for simplicity (can be upgraded to PostgreSQL/MySQL)
+
+2. Blueprints (Modular Route Organization)
+   - health_bp (/api/health): Health check endpoint for monitoring
+   - validation_bp (/api/validate-url): URL validation and robots.txt checking
+
+3. Middleware and Extensions
+   - Flask-Limiter: Rate limiting to prevent API abuse
+   - Flask-SQLAlchemy: Database ORM
+   - ResultProcessor: API discovery result processing pipeline
+
+4. Rate Limiting Configuration
+   - Default: 200 requests per day, 50 requests per hour
+   - In-memory storage (consider Redis for production)
+   - Per-IP address limiting
+   - Custom limits can be applied to specific endpoints
+
+5. Error Handlers
+   - 400 Bad Request: Invalid client input
+   - 404 Not Found: Endpoint doesn't exist
+   - 500 Internal Server Error: Server-side errors with logging
+
+6. Request Logging
+   - Logs all incoming requests (method, path, remote address)
+   - Optional header and body logging for debugging
+   - Helps with troubleshooting and security monitoring
+
+Blueprint URL Prefixes:
+   - /api/health -> Health check endpoint
+   - /api/validate-url -> URL validation endpoint
+   - /api/process -> API discovery result processing endpoint
+
+Main Endpoints:
+
+GET /
+    Renders the main web interface (if templates/index.html exists)
+
+POST /api/process
+    Processes API discovery results through the processing pipeline
+    Rate limit: 60 requests per minute
+    Request body:
+        {
+            "discovery_method": "openapi_spec|mitmproxy|combined_source",
+            "data": {...},
+            "openapi_spec": {...} (optional),
+            "http_interactions": [...] (optional)
+        }
+
+Database Configuration:
+    - SQLite database: app.db in the application directory
+    - SQLALCHEMY_TRACK_MODIFICATIONS: Disabled for performance
+    - Database models can be added in api/models.py
+
+Production Deployment Considerations:
+    - Use a production WSGI server (Gunicorn, uWSGI)
+    - Set debug=False
+    - Use environment variables for configuration
+    - Implement proper database migrations (Alembic)
+    - Use Redis for rate limiting storage
+    - Configure proper logging (file rotation, external logging service)
+    - Add authentication/authorization middleware
+    - Enable CORS if needed for frontend applications
+    - Implement request ID tracking for distributed tracing
+
+Environment Variables (Optional):
+    - FLASK_ENV: development|production
+    - DATABASE_URL: Database connection string
+    - SECRET_KEY: Flask secret key for sessions
+    - RATE_LIMIT_STORAGE_URL: Redis URL for rate limiting
+
+Usage:
+    Development:
+        python app.py
+
+    Production:
+        gunicorn -w 4 -b 0.0.0.0:5001 app:app
+"""
+
 from flask import Flask, jsonify, request, render_template
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
