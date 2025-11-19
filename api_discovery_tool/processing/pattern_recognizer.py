@@ -1,3 +1,79 @@
+"""
+API Pattern Recognition Module
+
+This module analyzes OpenAPI specifications and HTTP interactions to identify common API
+conventions, design patterns, and architectural styles. It provides insights into how an
+API is structured and what standards it follows.
+
+Recognized Pattern Types:
+
+1. Naming Conventions
+   - camelCase: firstName, lastName, userId
+   - snake_case: first_name, last_name, user_id
+   - PascalCase: FirstName, LastName, UserId
+   - UPPER_SNAKE_CASE: MAX_VALUE, API_KEY
+   - kebab-case: first-name, last-name, user-id
+   - Analyzed in: path segments, query parameters, headers, request/response bodies
+
+2. Versioning Strategies
+   - Path versioning: /v1/users, /api/v2/products
+   - Header versioning: X-API-Version: 1.0, API-Version: 2.0
+   - Accept header versioning: application/vnd.myapi.v1+json
+   - Query parameter versioning: ?version=1.0, ?api_version=2
+
+3. Authentication Schemes
+   - API Key (header or query parameter)
+   - Bearer Token (Authorization: Bearer <token>)
+   - Basic Authentication (Authorization: Basic <credentials>)
+   - OAuth2 (with various flows)
+   - Custom authentication headers (X-API-Key, X-Auth-Token, etc.)
+
+4. Pagination Patterns
+   - Page-based: page, page_number, pageNum
+   - Size-based: size, per_page, pageSize, limit, count
+   - Offset-based: offset, skip
+   - Cursor-based: cursor, next_token, continuation_token, page_token
+   - Link headers: rel="next", rel="prev", rel="first", rel="last"
+
+5. Data Formats
+   - Request/Response content types
+   - JSON (application/json)
+   - XML (application/xml, text/xml)
+   - Form data (application/x-www-form-urlencoded)
+   - Binary (application/octet-stream)
+   - Accept headers for content negotiation
+
+6. HTTP Methods Usage
+   - GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD, TRACE
+   - Frequency and distribution of method usage
+   - RESTful method patterns
+
+7. Status Codes
+   - Success codes (2xx)
+   - Redirection codes (3xx)
+   - Client error codes (4xx)
+   - Server error codes (5xx)
+   - Most commonly used status codes
+
+Data Sources:
+    - OpenAPI Specification: Provides structured API definition data
+    - HTTP Interactions: Provides actual observed traffic patterns
+
+Usage Example:
+    >>> recognizer = APIPatternRecognizer(
+    ...     openapi_spec=spec,
+    ...     http_interactions=interactions
+    ... )
+    >>> patterns = recognizer.identify_all_patterns()
+    >>> print(patterns['naming_conventions'])
+    {'path_segments': {'snake_case': 15, 'camelCase': 3}}
+    >>> print(patterns['versioning'])
+    {'path_versions': ['1', '2'], 'identified_versions': ['1', '2']}
+
+Classes:
+    APIPatternRecognizer: Main class for identifying API patterns and conventions
+"""
+
 import re
 from collections import Counter
 

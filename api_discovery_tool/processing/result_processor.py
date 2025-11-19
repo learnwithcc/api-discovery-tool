@@ -1,3 +1,83 @@
+"""
+Result Processing Pipeline Module
+
+This module orchestrates the complete API discovery result processing pipeline, integrating
+caching, confidence scoring, and pattern recognition to provide comprehensive analysis of
+discovered API endpoints.
+
+Processing Pipeline:
+    1. Cache Check
+       - Check if results for the same parameters already exist in cache
+       - If found and not stale, return cached results immediately
+       - Cache uses SHA256 hashing of parameters for consistent key generation
+
+    2. Data Preparation
+       - Extract OpenAPI specifications from discovery data (if available)
+       - Extract HTTP interactions from discovery data (if available)
+       - Prepare data for scoring and pattern recognition
+
+    3. Confidence Scoring
+       - Initialize ConfidenceScorer with available data
+       - Calculate overall confidence score based on multiple factors
+       - Generate detailed scoring breakdown for transparency
+
+    4. Pattern Recognition
+       - Initialize APIPatternRecognizer with OpenAPI spec and HTTP interactions
+       - Identify naming conventions (camelCase, snake_case, etc.)
+       - Detect versioning strategies (path, header, query param)
+       - Recognize authentication schemes (API key, Bearer, OAuth2)
+       - Identify pagination patterns (page-based, offset, cursor)
+       - Analyze data formats and content types
+       - Detect HTTP method usage patterns
+       - Identify status code patterns
+
+    5. Result Assembly
+       - Combine all analysis results into structured output
+       - Include raw data summary
+       - Include confidence score and details
+       - Include recognized API conventions and patterns
+
+    6. Cache Storage
+       - Store processed results in cache with current timestamp
+       - Cache expires based on configured TTL (default: 1 hour)
+       - Subsequent identical requests will use cached results
+
+Pipeline Architecture:
+    ResultProcessor
+    ├── ResultCache (Caching layer)
+    ├── ConfidenceScorer (Quality assessment)
+    └── APIPatternRecognizer (Convention detection)
+
+Supported Discovery Methods:
+    - 'openapi_spec': OpenAPI/Swagger specification discovered
+    - 'mitmproxy': HTTP traffic captured via MITM proxy
+    - 'combined_source': Multiple discovery methods used together
+    - Custom methods can be added by users
+
+Output Structure:
+    {
+        "discovery_method": str,
+        "raw_data_summary": str,
+        "analysis_summary": {
+            "confidence_score": float,
+            "confidence_details": dict,
+            "api_conventions": dict
+        }
+    }
+
+Usage Example:
+    >>> processor = ResultProcessor(cache_ttl_seconds=3600)
+    >>> result = processor.process_results(
+    ...     discovery_method='openapi_spec',
+    ...     data=openapi_spec_data,
+    ...     openapi_spec=openapi_spec_data
+    ... )
+    >>> print(f"Confidence: {result['analysis_summary']['confidence_score']:.2f}")
+
+Classes:
+    ResultProcessor: Main orchestrator for the result processing pipeline
+"""
+
 from typing import Any, Dict, List
 from .confidence_scorer import ConfidenceScorer
 from .result_cache import ResultCache

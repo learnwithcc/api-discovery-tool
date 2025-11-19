@@ -1,3 +1,70 @@
+"""
+Confidence Scoring Module
+
+This module provides functionality to calculate confidence scores for discovered API information
+based on multiple factors including data completeness, source reliability, recency, and validation
+status. Higher scores indicate more trustworthy and complete API discovery results.
+
+Scoring Algorithm:
+    The overall confidence score is a weighted combination of four key factors:
+
+    1. Completeness Score (Weight: 30%)
+       - Measures how many expected fields are present in the discovery data
+       - Formula: (fields_present / total_expected_fields)
+       - Range: 0.0 to 1.0
+
+    2. Reliability Score (Weight: 40%)
+       - Based on the trustworthiness of the data source
+       - Official documentation: 0.9
+       - Known API databases: 0.8
+       - Partner APIs: 0.75
+       - Internal sources: 0.95
+       - Code repositories: 0.6
+       - Blogs: 0.5
+       - Web search: 0.4
+       - Forums: 0.3
+       - Unknown: 0.2
+
+    3. Recency Score (Weight: 15%)
+       - Measures how recent the discovered information is
+       - Decay rate: 10% per year of age
+       - Formula: MAX_SCORE - (decay_rate * age_in_years)
+       - Range: 0.0 to 1.0
+
+    4. Validation Score (Weight: 15%)
+       - Whether the discovered data has been validated
+       - Validated: 1.0
+       - Not validated: 0.0
+       - Unknown: 0.5 (neutral)
+
+    Final Score = (completeness * 0.3) + (reliability * 0.4) + (recency * 0.15) + (validation * 0.15)
+
+Scoring Weights:
+    COMPLETENESS: 30% - Ensures discovered data has all necessary fields
+    RELIABILITY:  40% - Most important factor, prioritizes trustworthy sources
+    RECENCY:      15% - Prefers newer information but not critical
+    VALIDATION:   15% - Prefers validated data but accounts for unvalidated discoveries
+
+Usage Example:
+    >>> scorer = ConfidenceScorer(
+    ...     openapi_spec={"openapi": "3.0.0", "paths": {"/users": {"get": {}}}},
+    ...     http_interactions=[{"request": {}, "response": {}}]
+    ... )
+    >>> score = scorer.calculate_overall_score()
+    >>> print(f"Confidence: {score:.2f}")
+    Confidence: 0.75
+    >>> details = scorer.get_score_details()
+
+Constants:
+    SOURCE_RELIABILITY_SCORES: Mapping of source types to reliability scores
+    WEIGHTS: Weighting factors for each scoring dimension
+    MAX_RECENCY_SCORE: Maximum score for recency (1.0)
+    RECENCY_DECAY_RATE_PER_YEAR: Annual decay rate for recency score (0.1)
+
+Classes:
+    ConfidenceScorer: Main scoring class for API discovery results
+"""
+
 import datetime
 
 # Define constants for source reliability scores
