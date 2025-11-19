@@ -1,6 +1,17 @@
 # API Discovery Tool
 
+[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 A comprehensive Python tool for discovering APIs used by websites through multiple analysis methods including HTML parsing, JavaScript analysis, network monitoring, and common endpoint testing.
+
+## 📚 Documentation
+
+- **[Architecture Guide](ARCHITECTURE.md)** - System design and module relationships
+- **[API Documentation](API_DOCUMENTATION.md)** - Flask API endpoints and usage
+- **[Contributing Guide](CONTRIBUTING.md)** - Development setup and guidelines
+- **[Configuration Guide](CONFIGURATION.md)** - Environment and configuration setup
 
 ## 🚀 Features
 
@@ -10,6 +21,80 @@ A comprehensive Python tool for discovering APIs used by websites through multip
 - **Legal Compliance**: Respects robots.txt and implements ethical scraping practices
 - **Comprehensive Reporting**: Generates detailed JSON reports with analysis metadata
 - **Configurable**: Highly customizable with configuration file support
+
+## 🏗 Project Architecture
+
+The API Discovery Tool is built with a modular architecture designed for flexibility and extensibility. Here's a high-level overview:
+
+### Core Components
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    API Discovery Tool                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌────────────────┐         ┌─────────────────┐            │
+│  │  CLI Interface │         │   Flask API     │            │
+│  │ (api-discovery │  ◄────► │   (app.py)      │            │
+│  │   -tool.py)    │         │                 │            │
+│  └────────────────┘         └─────────────────┘            │
+│         │                            │                      │
+│         └────────────┬───────────────┘                      │
+│                      ▼                                      │
+│         ┌─────────────────────────┐                        │
+│         │  Discovery Orchestrator │                        │
+│         └─────────────────────────┘                        │
+│                      │                                      │
+│         ┌────────────┼────────────┐                        │
+│         ▼            ▼            ▼                        │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐                │
+│  │   HTML   │  │JavaScript│  │ Network  │                │
+│  │ Analysis │  │ Analysis │  │ Monitor  │                │
+│  └──────────┘  └──────────┘  └──────────┘                │
+│         │            │            │                        │
+│         └────────────┼────────────┘                        │
+│                      ▼                                      │
+│         ┌─────────────────────────┐                        │
+│         │   Processing Pipeline   │                        │
+│         ├─────────────────────────┤                        │
+│         │ • Result Processor      │                        │
+│         │ • Confidence Scorer     │                        │
+│         │ • Pattern Recognizer    │                        │
+│         │ • Categorizer           │                        │
+│         │ • Deduplicator          │                        │
+│         └─────────────────────────┘                        │
+│                      │                                      │
+│                      ▼                                      │
+│         ┌─────────────────────────┐                        │
+│         │   Output & Reporting    │                        │
+│         └─────────────────────────┘                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Modules
+
+- **Discovery Methods** (`api_discovery_tool/`): Core discovery implementations
+  - HTML source parsing
+  - JavaScript code analysis
+  - Network traffic monitoring
+  - Common endpoint testing
+  - Framework detection
+
+- **Processing Pipeline** (`api_discovery_tool/processing/`): Results enhancement
+  - **Result Processor**: Orchestrates the processing pipeline
+  - **Confidence Scorer**: Assigns reliability scores to discovered APIs
+  - **Pattern Recognizer**: Identifies API patterns and types
+  - **Categorizer**: Classifies APIs by type (REST, GraphQL, WebSocket, etc.)
+  - **Deduplicator**: Removes duplicate endpoints
+  - **Result Cache**: Caches processed results for performance
+
+- **API Layer** (`api/`): Flask-based REST API
+  - Discovery endpoints
+  - Health checks
+  - Request validation
+  - Compliance checking
+
+For a detailed architecture explanation, see **[ARCHITECTURE.md](ARCHITECTURE.md)**.
 
 ## 🛠 Installation
 
@@ -63,6 +148,183 @@ python api-discovery-tool.py https://simple-site.com \
   --no-selenium \
   --output quick_scan.json
 ```
+
+### Programmatic Usage
+
+You can also use the API Discovery Tool as a Python library in your own projects:
+
+```python
+from api_discovery_tool.api_discovery_tool import APIDiscoveryTool
+
+# Basic usage
+tool = APIDiscoveryTool(url="https://example.com")
+results = tool.discover()
+
+# Access discovered APIs
+for api in results['discovered_apis']:
+    print(f"Found API: {api['url']} (Method: {api['method']})")
+
+# Access network requests
+for request in results['network_requests']:
+    print(f"Network call: {request['url']} ({request['method']})")
+```
+
+#### Advanced Programmatic Usage
+
+```python
+from api_discovery_tool.api_discovery_tool import APIDiscoveryTool
+
+# Configure with custom options
+tool = APIDiscoveryTool(
+    url="https://example.com",
+    headless=True,
+    ignore_robots=False,
+    user_agent="CustomBot/1.0"
+)
+
+# Run discovery
+results = tool.discover()
+
+# Process results
+print(f"Total APIs discovered: {results['summary']['total_apis_discovered']}")
+print(f"Frameworks detected: {', '.join(results['summary']['javascript_frameworks'])}")
+
+# Save to file
+tool.save_results(results, "custom_output.json")
+```
+
+#### Using Processing Modules Directly
+
+You can also use individual processing modules for custom workflows:
+
+```python
+from api_discovery_tool.processing.confidence_scorer import ConfidenceScorer
+from api_discovery_tool.processing.categorizer import categorize_api
+from api_discovery_tool.processing.deduplicator import deduplicate_apis
+
+# Score API confidence
+scorer = ConfidenceScorer()
+api_endpoint = {
+    'url': '/api/v1/users',
+    'method': 'network_monitoring',
+    'http_method': 'GET'
+}
+scored_api = scorer.score_endpoint(api_endpoint)
+print(f"Confidence: {scored_api['confidence_score']}")
+
+# Categorize API type
+api_type = categorize_api('/api/v1/products')
+print(f"API Type: {api_type}")  # e.g., 'REST'
+
+# Deduplicate API list
+apis = [
+    {'url': '/api/users', 'method': 'html_analysis'},
+    {'url': '/api/users', 'method': 'network_monitoring'},
+    {'url': '/api/products', 'method': 'javascript_analysis'}
+]
+unique_apis = deduplicate_apis(apis)
+print(f"Unique APIs: {len(unique_apis)}")  # 2
+```
+
+#### Pattern Recognition Example
+
+```python
+from api_discovery_tool.processing.pattern_recognizer import PatternRecognizer
+
+# Recognize API patterns
+recognizer = PatternRecognizer()
+patterns = recognizer.recognize_patterns([
+    '/api/v1/users',
+    '/api/v1/products',
+    '/graphql',
+    'wss://example.com/socket'
+])
+
+print(f"REST APIs: {len(patterns['rest'])}")
+print(f"GraphQL APIs: {len(patterns['graphql'])}")
+print(f"WebSocket APIs: {len(patterns['websocket'])}")
+```
+
+### Flask API Usage
+
+The tool includes a Flask-based REST API for remote discovery operations. See **[API_DOCUMENTATION.md](API_DOCUMENTATION.md)** for complete API reference.
+
+#### Starting the API Server
+
+```bash
+# Start the Flask server
+python app.py
+
+# Server runs on http://localhost:5000 by default
+```
+
+#### API Endpoints
+
+**Discover APIs from a URL:**
+
+```bash
+curl -X POST http://localhost:5000/api/v1/discover \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "headless": true,
+    "ignore_robots": false
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "status": "success",
+  "data": {
+    "target_url": "https://example.com",
+    "summary": {
+      "total_apis_discovered": 8,
+      "total_network_requests": 15,
+      "javascript_frameworks": ["React"]
+    },
+    "discovered_apis": [
+      {
+        "url": "/api/v1/products",
+        "method": "network_monitoring",
+        "confidence_score": 0.95,
+        "api_type": "REST"
+      }
+    ]
+  }
+}
+```
+
+**Health Check:**
+
+```bash
+curl http://localhost:5000/health
+```
+
+#### Python Client Example
+
+```python
+import requests
+
+# Discover APIs via REST API
+response = requests.post(
+    'http://localhost:5000/api/v1/discover',
+    json={
+        'url': 'https://example.com',
+        'headless': True
+    }
+)
+
+if response.status_code == 200:
+    results = response.json()
+    apis = results['data']['discovered_apis']
+    print(f"Found {len(apis)} APIs")
+    for api in apis:
+        print(f"  - {api['url']} (Confidence: {api['confidence_score']})")
+```
+
+For more API examples and full endpoint documentation, see **[API_DOCUMENTATION.md](API_DOCUMENTATION.md)**.
 
 ## 🔍 Discovery Methods
 
@@ -165,7 +427,11 @@ The tool generates comprehensive JSON reports with the following structure:
 
 ## 🔧 Configuration
 
-The tool uses `api_discovery_config.json` for advanced configuration:
+The tool supports multiple configuration methods including configuration files, environment variables, and command-line arguments.
+
+### Quick Configuration Example
+
+Create a `api_discovery_config.json` file:
 
 ```json
 {
@@ -181,6 +447,35 @@ The tool uses `api_discovery_config.json` for advanced configuration:
   }
 }
 ```
+
+### Environment Variables
+
+Create a `.env` file for sensitive configuration:
+
+```bash
+# Chrome/ChromeDriver settings
+CHROME_BINARY_PATH=/usr/bin/chromium-browser
+CHROMEDRIVER_PATH=/usr/bin/chromedriver
+
+# Database configuration (if using Flask API)
+DATABASE_URL=sqlite:///api_discovery.db
+
+# API server settings
+FLASK_ENV=development
+FLASK_DEBUG=True
+```
+
+### Complete Configuration Guide
+
+For comprehensive configuration documentation including:
+- All available environment variables
+- Configuration file options
+- Chrome/ChromeDriver setup
+- Database configuration
+- Rate limiting and caching options
+- Flask API configuration
+
+See the **[Configuration Guide (CONFIGURATION.md)](CONFIGURATION.md)** for complete details.
 
 ## 🔍 Common Use Cases
 
@@ -242,15 +537,118 @@ python api-discovery-tool.py https://example.com --verbose
 python api-discovery-tool.py https://example.com --method html-only
 ```
 
+## 🛠 Development
+
+### Setting Up Development Environment
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/api-discovery-tool.git
+cd api-discovery-tool
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Install development dependencies
+pip install -r requirements-dev.txt  # If available
+
+# Run tests
+pytest
+
+# Run with coverage
+pytest --cov=api_discovery_tool --cov-report=html
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest api_discovery_tool/processing/tests/test_confidence_scorer.py
+
+# Run with verbose output
+pytest -v
+
+# Run tests in parallel
+pytest -n auto
+```
+
+### Code Quality
+
+```bash
+# Format code with black
+black api_discovery_tool/
+
+# Lint code
+flake8 api_discovery_tool/
+pylint api_discovery_tool/
+
+# Type checking
+mypy api_discovery_tool/
+```
+
+### Project Structure
+
+```
+api-discovery-tool/
+├── api/                          # Flask API implementation
+│   ├── routes/                   # API route handlers
+│   └── services/                 # API service layer
+├── api_discovery_tool/           # Core discovery implementation
+│   ├── processing/               # Processing pipeline modules
+│   │   ├── categorizer.py
+│   │   ├── confidence_scorer.py
+│   │   ├── pattern_recognizer.py
+│   │   ├── result_processor.py
+│   │   ├── deduplicator.py
+│   │   └── result_cache.py
+│   └── api_discovery_tool.py     # Main discovery class
+├── app.py                        # Flask application entry point
+├── api-discovery-tool.py         # CLI entry point
+└── tests/                        # Test suite
+```
+
+For detailed development guidelines, coding standards, and contribution workflows, see **[CONTRIBUTING.md](CONTRIBUTING.md)**.
+
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
+Contributions are welcome! We follow a structured contribution process to maintain code quality and consistency.
+
+### Quick Start for Contributors
 
 1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality  
-4. Ensure legal compliance in all features
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes following our coding standards
+4. Add tests for new functionality
+5. Ensure all tests pass (`pytest`)
+6. Ensure legal and ethical compliance in all features
+7. Commit your changes (`git commit -m 'Add amazing feature'`)
+8. Push to your branch (`git push origin feature/amazing-feature`)
+9. Open a Pull Request
+
+### What to Contribute
+
+- Bug fixes and issue resolutions
+- New API detection patterns
+- Performance improvements
+- Documentation enhancements
+- Test coverage improvements
+- New discovery methods
+
+For comprehensive contribution guidelines including:
+- Development environment setup
+- Coding standards and style guide
+- Testing requirements
+- Pull request process
+- How to add new features
+
+See the complete **[Contributing Guide (CONTRIBUTING.md)](CONTRIBUTING.md)**.
 
 ## 📄 License
 
